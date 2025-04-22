@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pengenalan Uang Rupiah</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav>
+    <a href="index.html">Deteksi Barang</a>
+    <a href="rupiah.html"class="active">Deteksi Uang Rupiah</a>
+    <a href="objek.html">Deteksi Objek Umum</a>
+    <a href="outfit.html">Deteksi Outfit</a>
+    <a href="alatmakan.html" >Deteksi Alat Makan</a>
+    <a href="anggota.html">Anggota</a>
+  </nav>
+
+  <h2>Deteksi Uang Rupiah</h2>
+  <p>Model Teachable Machine - 1ApE7gBGe</p>
+
+  <div id="video-container">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="canvas" width="400" height="300" style="display: none"></canvas>
+    <div class="output" id="item-output">Uang Terdeteksi: -</div>
+  </div>
+
+  <button onclick="mulaiDeteksi()">Aktifkan Kamera</button>
+
+  <!-- Slider untuk menunjukkan persentase -->
+  <div class="sliders">
+    <label for="percentageSlider">Persentase Deteksi:</label>
+    <input type="range" id="percentageSlider" min="0" max="100" step="1" value="0" disabled />
+    <div id="percentageText">0%</div>
+  </div>
+
+  <!-- TensorFlow.js & Teachable Machine Image -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+  <script type="text/javascript">
+    const modelURL = "https://teachablemachine.withgoogle.com/models/1ApE7gBGe/";
+    let model, video, canvas, ctx;
+
+    async function mulaiDeteksi() {
+      video = document.getElementById("video");
+      canvas = document.getElementById("canvas");
+      ctx = canvas.getContext("2d");
+
+      try {
+        model = await tmImage.load(modelURL + "model.json", modelURL + "metadata.json");
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false
+        });
+
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          video.play();
+          requestAnimationFrame(loop);
+        };
+      } catch (err) {
+        console.error("Gagal mengakses kamera:", err);
+        alert("Gagal mengakses kamera.");
+      }
+    }
+
+    async function loop() {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      await prediksiUang();
+      requestAnimationFrame(loop);
+    }
+
+    async function prediksiUang() {
+      const prediction = await model.predict(canvas);
+      const tertinggi = prediction.reduce(
+        (max, p) => (p.probability > max.probability ? p : max),
+        { probability: 0 }
+      );
+
+      document.getElementById("item-output").innerText = `Uang Terdeteksi: ${tertinggi.className} (${(tertinggi.probability * 100).toFixed(1)}%)`;
+
+      // Mengubah slider persentase sesuai dengan deteksi probabilitas
+      const percentage = (tertinggi.probability * 100).toFixed(1);
+      document.getElementById("percentageSlider").value = percentage;
+      document.getElementById("percentageText").innerText = `${percentage}%`;
+    }
+  </script>
+</body>
+</html>
